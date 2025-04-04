@@ -1,0 +1,11 @@
+.vagrant/
+*.box
+*.rpm
+*.log
+*.iso
+*.img
+*.tar.gz
+*.tar
+*.gz
+*.swp
+
