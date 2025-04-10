@@ -1,21 +1,46 @@
 #!/bin/bash
 
+# install_lustre_client.sh
+# Finalized Lustre Client Setup for AlmaLinux 8.7 (DKMS-based)
+
 set -e
+set -o pipefail
 
-echo "[*] Updating system..."
-sudo dnf update -y
+echo "🔧 Setting up Lustre Client (DKMS version)..."
 
-echo "[*] Installing build tools and dependencies..."
-sudo dnf install -y wget curl dnf-utils grub2-tools kernel-devel gcc make
+# Step 1: Add Lustre client repository
+echo "📦 Adding Lustre repo..."
+sudo tee /etc/yum.repos.d/lustre-client.repo > /dev/null <<EOF
+[lustre-client]
+name=Lustre Client
+baseurl=https://downloads.whamcloud.com/public/lustre/latest-release/el8.10/client/
+enabled=1
+gpgcheck=0
+EOF
 
-echo "[*] Installing an older kernel compatible with Lustre..."
-sudo dnf install -y kernel-4.18.0-425.19.2.el8_7.x86_64 kernel-core-4.18.0-425.19.2.el8_7.x86_64 kernel-devel-4.18.0-425.19.2.el8_7.x86_64
+# Step 2: Enable CRB (CodeReady Builder) repo for dev libraries
+echo "🔓 Enabling CodeReady Builder repo..."
+sudo dnf install -y dnf-plugins-core
+sudo dnf config-manager --set-enabled codeready-builder-for-rhel-8-x86_64-rpms || sudo dnf config-manager --enable powertools
+sudo dnf makecache
 
-echo "[*] Setting default boot kernel to 4.18.0-425..."
-sudo grub2-set-default 1
-sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+# Step 3: Install dependencies and DKMS package
+echo "⬇️ Installing dependencies and DKMS..."
+sudo dnf install -y dkms libmount-devel libyaml-devel
+sudo dnf install -y lustre-client-dkms
 
-echo "[*] Rebooting into compatible kernel..."
-sleep 2
-sudo reboot
+# Step 4: Ensure Lustre module loads on boot
+echo "📁 Setting Lustre module to load at boot..."
+echo "lustre" | sudo tee /etc/modules-load.d/lustre.conf > /dev/null
+
+# Step 5: Load the Lustre module now
+echo "📦 Loading Lustre kernel module..."
+sudo modprobe lustre
+
+# Step 6: Done!
+echo "✅ Lustre client setup complete."
+echo ""
+echo "👉 To mount the Lustre file system, use:"
+echo "   sudo mkdir -p /mnt/lustre"
+echo "   sudo mount -t lustre <mgs_hostname>@tcp:/<fsname> /mnt/lustre"
 
