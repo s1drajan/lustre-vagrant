@@ -10,3 +10,6 @@
 *.swp
 
 bionic64
+.vagrant/
+*.box
+*.vdi

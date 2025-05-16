@@ -1,46 +1,40 @@
 #!/bin/bash
 
-# install_lustre_client.sh
-# Finalized Lustre Client Setup for AlmaLinux 8.7 (DKMS-based)
+echo "🚀 Starting Lustre Client setup..."
 
-set -e
-set -o pipefail
+# Add Lustre client repo
+echo "📦 Adding Lustre client repo..."
+sudo dnf config-manager --add-repo https://downloads.whamcloud.com/public/lustre/latest-release/el8/client.repo
 
-echo "🔧 Setting up Lustre Client (DKMS version)..."
+# Enable PowerTools (needed for dependencies)
+echo "🔓 Enabling PowerTools repo (if needed)..."
+if sudo dnf config-manager --set-enabled powertools; then
+    echo "✅ Enabled powertools."
+elif sudo dnf config-manager --set-enabled PowerTools; then
+    echo "✅ Enabled PowerTools."
+else
+    echo "⚠️ Could not enable PowerTools automatically. Make sure it's enabled manually if you hit issues."
+fi
 
-# Step 1: Add Lustre client repository
-echo "📦 Adding Lustre repo..."
-sudo tee /etc/yum.repos.d/lustre-client.repo > /dev/null <<EOF
-[lustre-client]
-name=Lustre Client
-baseurl=https://downloads.whamcloud.com/public/lustre/latest-release/el8.10/client/
-enabled=1
-gpgcheck=0
-EOF
+# Add EPEL (for dkms and other extras)
+echo "📦 Installing EPEL release for DKMS..."
+sudo dnf install -y epel-release
 
-# Step 2: Enable CRB (CodeReady Builder) repo for dev libraries
-echo "🔓 Enabling CodeReady Builder repo..."
-sudo dnf install -y dnf-plugins-core
-sudo dnf config-manager --set-enabled codeready-builder-for-rhel-8-x86_64-rpms || sudo dnf config-manager --enable powertools
+# Update repos
+echo "🔄 Updating repositories..."
 sudo dnf makecache
 
-# Step 3: Install dependencies and DKMS package
-echo "⬇️ Installing dependencies and DKMS..."
-sudo dnf install -y dkms libmount-devel libyaml-devel
-sudo dnf install -y lustre-client-dkms
+# Install dependencies + DKMS
+echo "⬇️ Installing kernel development tools + DKMS..."
+sudo dnf install -y dkms kernel-devel kernel-headers
 
-# Step 4: Ensure Lustre module loads on boot
-echo "📁 Setting Lustre module to load at boot..."
-echo "lustre" | sudo tee /etc/modules-load.d/lustre.conf > /dev/null
+# Install Lustre client
+echo "📦 Installing Lustre client packages..."
+sudo dnf install -y kmod-lustre lustre-client
 
-# Step 5: Load the Lustre module now
-echo "📦 Loading Lustre kernel module..."
-sudo modprobe lustre
+# Confirm loaded modules
+echo "🔍 Checking loaded Lustre modules..."
+lsmod | grep lustre || echo "ℹ️ Lustre module not loaded yet. You can load it with: sudo modprobe lustre"
 
-# Step 6: Done!
-echo "✅ Lustre client setup complete."
-echo ""
-echo "👉 To mount the Lustre file system, use:"
-echo "   sudo mkdir -p /mnt/lustre"
-echo "   sudo mount -t lustre <mgs_hostname>@tcp:/<fsname> /mnt/lustre"
+echo "✅ Lustre client setup complete!"
 
